@@ -50,7 +50,8 @@ def load_ipynb(filename):
          'nbformat': 4,
          'nbformat_minor': 5}
     """
-    pass
+    with open(filename, 'rb') as f:
+        return json.load(f)
 
 
 def save_ipynb(ipynb, filename):
@@ -73,7 +74,8 @@ def save_ipynb(ipynb, filename):
         True
 
     """
-    pass
+    with open(filename, "w") as f:
+        return json.dump(ipynb, f)
 
 
 def get_format_version(ipynb):
@@ -90,7 +92,7 @@ def get_format_version(ipynb):
         >>> get_format_version(ipynb)
         '4.5'
     """
-    pass
+    return f"{ipynb['nbformat']}.{ipynb['nbformat_minor']}"
 
 
 def get_metadata(ipynb):
@@ -114,7 +116,7 @@ def get_metadata(ipynb):
                            'pygments_lexer': 'ipython3',
                            'version': '3.9.7'}}
     """
-    pass
+    return ipynb['metadata']
 
 
 def get_cells(ipynb):
@@ -148,7 +150,7 @@ def get_cells(ipynb):
           'metadata': {},
           'source': ['Goodbye! 👋']}]
     """
-    pass
+    return ipynb['cells']
 
 
 def to_percent(ipynb):
@@ -175,7 +177,21 @@ def to_percent(ipynb):
         ...     with open(notebook_file.with_suffix(".py"), "w", encoding="utf-8") as output:
         ...         print(percent_code, file=output)
     """
-    pass
+    ans = []
+    for dic in ipynb['cells']:
+        if dic['cell_type'] == 'markdown':
+            ans.append('# %% [markdown]\n')
+            for elem in dic['source']:
+                ans.append('# ')
+                ans.append(elem)
+        elif dic['cell_type'] == 'code':
+            ans.append('# %%\n')
+            for elem in dic['source']:
+                ans.append(elem)
+        ans.append('\n')
+        ans.append('\n')
+    ans.pop()
+    return "".join(ans)
 
 
 def starboard_html(code):
@@ -232,7 +248,35 @@ def to_starboard(ipynb, html=False):
         ...     with open(notebook_file.with_suffix(".html"), "w", encoding="utf-8") as output:
         ...         print(starboard_html, file=output)
     """
-    pass
+    if html == False:
+        list = []
+        for dic in ipynb['cells']:
+            if dic['cell_type'] == 'markdown':
+                list.append('# %% [markdown]\n')
+                for elem in dic['source']:
+                    list.append(elem)
+            elif dic['cell_type'] == 'code':
+                list.append('# %% [python]\n')
+                for elem in dic['source']:
+                    list.append(elem)
+            list.append('\n')
+        list.pop()
+        return "".join(str(elem) for elem in list)
+    
+    if html == True:
+        ans = []
+        for dic in ipynb['cells']:
+            if dic['cell_type'] == 'markdown':
+                ans.append('# %% [markdown]\n')
+            else:
+                ans.append('# %% [python]\n')
+            for elem in dic['source']:
+                ans.append(elem)
+            ans.append('\n')
+        ans.pop()
+        string54 = "".join(ans)
+    return starboard_html(string54)
+hello = load_ipynb("samples/hello-world.ipynb")
 
 
 # Outputs
@@ -288,7 +332,11 @@ def clear_outputs(ipynb):
          'nbformat': 4,
          'nbformat_minor': 5}
     """
-    pass
+    for dic in ipynb['cells']:
+        if dic['cell_type'] == 'code':
+            dic['execution_count'] = None
+            dic['outputs'] = []
+    return ipynb
 
 
 def get_stream(ipynb, stdout=True, stderr=False):
@@ -306,7 +354,14 @@ def get_stream(ipynb, stdout=True, stderr=False):
         👋 Hello world! 🌍
         🔥 This is fine. 🔥 (https://gunshowcomic.com/648)
     """
-    pass
+    output2 = []
+    for dic in ipynb['cells']:
+        if dic['cell_type'] == 'code':
+            if stdout == True and dic['outputs'][0]['name'] == 'stdout':
+                output2.append(dic['outputs'][0]['text'][0])
+            if stderr == True and dic['outputs'][0]['name'] == 'stderr':
+                output2.append(dic['outputs'][0]['text'][0])
+    return ("".join(str(elem) for elem in output2))
 
 
 def get_exceptions(ipynb):
@@ -328,7 +383,12 @@ def get_exceptions(ipynb):
         TypeError("unsupported operand type(s) for +: 'int' and 'str'")
         Warning('🌧️  light rain')
     """
-    pass
+    excep = []
+    for dic in ipynb['cells']:
+        if dic['cell_type'] == 'code':
+            if dic['outputs'][0]['output_type'] == 'error':
+                excep.append(eval("".join([dic['outputs'][0]['ename'], "(", repr(dic['outputs'][0]['evalue']), ")"])))
+    return excep
 
 
 def get_images(ipynb):
@@ -352,4 +412,10 @@ def get_images(ipynb):
                 ...,
                 [ 14,  13,  19]]], dtype=uint8)
     """
-    pass
+    answer = []
+    for dic in ipynb['cells']:
+        if dic['cell_type'] == 'code' and len(dic['outputs']) != 0 and 'image/png' in dic['outputs'][0]['data']:
+            image = PIL.Image.open(io.BytesIO(base64.b64decode(dic['outputs'][0]['data']['image/png'])))
+            arr = np.array(image)
+            answer.append(arr)
+    return answer

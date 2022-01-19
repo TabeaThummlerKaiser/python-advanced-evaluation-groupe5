@@ -5,6 +5,8 @@
 an object-oriented version of the notebook toolbox
 """
 
+import json
+
 class CodeCell:
     r"""A Cell of Python code in a Jupyter notebook.
 
@@ -30,9 +32,11 @@ class CodeCell:
         ['print("Hello world!")']
     """
     def __init__(self, id, source, execution_count):
-        pass
+        self.id = id
+        self.source = source
+        self.execution_count = execution_count
 
-class MarkdownCell:
+class MarkdownCell(CodeCell):
     r"""A Cell of Markdown markup in a Jupyter notebook.
 
     Args:
@@ -56,7 +60,7 @@ class MarkdownCell:
         ['Hello world!', '============', 'Print `Hello world!`:']
     """
     def __init__(self, id, source):
-        super().__init__(id, source)
+        super().__init__(id, source, None)
 
 class Notebook:
     r"""A Jupyter Notebook
@@ -92,12 +96,13 @@ class Notebook:
     """
 
     def __init__(self, version, cells):
-        pass
+        self.version = version
+        self.cells = cells
     
     def __iter__(self):
         r"""Iterate the cells of the notebook.
         """
-        pass
+        return iter(self.cells)
 
 class NotebookLoader:
     r"""Loads a Jupyter Notebook from a file
@@ -117,14 +122,21 @@ class NotebookLoader:
             a23ab5ac
     """
     def __init__(self, filename):
-        pass
+        self.filename = filename
 
     def load(self):
         r"""Loads a Notebook instance from the file.
         """
-        pass
+        nb = json.load(open(self.filename, 'rb'))
+        cell = []
+        for dic in nb['cells']:
+            if dic['cell_type'] == 'code':
+                cell.append(CodeCell(dic['id'], dic['source'], dic['execution_count']))
+            elif dic['cell_type'] == 'markdown':
+                cell.append(MarkdownCell(dic['id'], dic['source']))
+        return Notebook(f"{nb['nbformat']}.{nb['nbformat_minor']}", cell)
 
-class Markdownizer:
+class Markdownizer(Notebook):
     r"""Transforms a notebook to a pure markdown notebook.
 
     Args:
@@ -147,12 +159,16 @@ class Markdownizer:
     """
 
     def __init__(self, notebook):
-        pass
+        self.cells = notebook.cells
+        self.version = notebook.version
 
     def markdownize(self):
         r"""Transforms the notebook to a pure markdown notebook.
         """
-        pass
+        for cell in self.cells:
+            if isinstance(cell, CodeCell):
+                cell.__class__ = MarkdownCell
+        return self
 
 class MarkdownLesser:
     r"""Removes markdown cells from a notebook.
@@ -170,7 +186,8 @@ class MarkdownLesser:
                 | print("Hello world!")
     """
     def __init__(self, notebook):
-        pass
+        self.version = notebook.version
+        self.cells = notebook.cells
 
     def remove_markdown_cells(self):
         r"""Removes markdown cells from the notebook.
@@ -178,7 +195,12 @@ class MarkdownLesser:
         Returns:
             Notebook: a Notebook instance with only code cells
         """
-        pass
+        new_cells = []
+        for cell in self.cells:
+            if not isinstance(cell, MarkdownCell):
+                new_cells.append(cell)
+        self.cells = new_cells
+        return self
 
 class PyPercentLoader:
     r"""Loads a Jupyter Notebook from a py-percent file.
@@ -204,9 +226,61 @@ class PyPercentLoader:
     """
 
     def __init__(self, filename, version="4.5"):
-        pass
+        self.filename = filename
+        self.version = version
 
     def load(self):
         r"""Loads a Notebook instance from the py-percent file.
         """
-        pass
+        with open(self.filename, "r") as f:
+            lines = f.readlines()
+        cells = []
+        counter = 0 #indique à quel indice on est de la liste lines
+        id = 0 #il faut donner un id à chaque cellule, mais on ne connait pas l'id d'origine, donc on en attribue un "au hasard"
+        l = len(lines)
+        while counter < l - 1:
+            #if lines[counter][:4] == "# $$":
+            if "markdown" in lines[counter]:
+                counter += 1
+                markdown_cell = []
+                blankline = False
+                while counter < l - 1 and blankline == False:
+                    if lines[counter] == "\n":
+                        counter += 1
+                        blankline = True
+                    elif lines[counter][-1:] == "\n":
+                        markdown_cell.append(lines[counter][2:-1])
+                        counter += 1
+                    else:
+                        markdown_cell.append(lines[counter][2:])
+                        counter += 1
+                cells.append(MarkdownCell(id, markdown_cell))
+                id += 1
+            else:
+                counter += 1
+                code_cell = []
+                blankline = False
+                while counter < l - 1 and blankline == False:
+                    if lines[counter] == "\n":
+                        counter += 1
+                        blankline = True
+                    elif lines[counter][-1:] == "\n":
+                        code_cell.append(lines[counter][:-1])
+                        counter += 1
+                    else:
+                        code_cell.append(lines[counter])
+                        counter += 1
+                cells.append(CodeCell(id, code_cell, 1)) #execution_count = 1
+                id += 1
+        return Notebook(self.version, cells)                           
+
+#with open("samples/test.txt", "r") as f:
+    #lines = f.readlines()
+nb_test = PyPercentLoader("samples/test.txt").load()
+print(nb_test.cells)
+
+nb = NotebookLoader("samples/hello-world.ipynb").load()
+print(nb.cells)
+
+nb2 = PyPercentLoader("samples/hello-world-py-percent.py").load()
+print(nb2.cells)

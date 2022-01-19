@@ -4,6 +4,7 @@
 import unittest
 
 from notebook_v1 import *
+import notebook_v0 as toolbox #rajouté par moi
 
 class Question9(unittest.TestCase):
     def test_build_code_cell(self):
@@ -43,7 +44,10 @@ class Question9(unittest.TestCase):
         ipynb = toolbox.load_ipynb("samples/hello-world.ipynb")
         nb = Notebook(ipynb)
         self.assertIsInstance(nb.cells, list)
-        self.assertIsInstance(nb.cells[0], Cell)
+        #self.assertIsInstance(nb.cells[0], Cell)   #modifié par moi
+        self.assertIsInstance(nb.cells[0], MarkdownCell) #rajouté par moi
+        self.assertIsInstance(nb.cells[1], CodeCell) #rajouté par moi
+        self.assertIsInstance(nb.cells[2], MarkdownCell) #rajouté par moi
 
 class Question10(unittest.TestCase):
     def test_from_file(self):

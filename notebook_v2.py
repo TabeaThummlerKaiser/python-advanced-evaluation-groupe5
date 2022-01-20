@@ -273,14 +273,3 @@ class PyPercentLoader:
                 cells.append(CodeCell(id, code_cell, 1)) #execution_count = 1
                 id += 1
         return Notebook(self.version, cells)                           
-
-#with open("samples/test.txt", "r") as f:
-    #lines = f.readlines()
-nb_test = PyPercentLoader("samples/test.txt").load()
-print(nb_test.cells)
-
-nb = NotebookLoader("samples/hello-world.ipynb").load()
-print(nb.cells)
-
-nb2 = PyPercentLoader("samples/hello-world-py-percent.py").load()
-print(nb2.cells)
